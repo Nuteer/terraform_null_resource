@@ -1,0 +1,80 @@
+name: CI/CD template for teste
+
+on:
+
+  pull_request:
+    branches: [ "main" ]
+
+
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        type: choice
+        required: true
+        options:
+          - dev
+          - uat
+          - prod
+
+jobs:
+
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v1
+        with:
+          terraform_version: 0.14.7
+
+      - name: Terraform format
+        run: terraform fmt -check
+
+      - name: Terraform init
+        run: terraform init
+
+      - name: Terraform workspace new
+        run: terraform workspace new ${{ github.event.inputs.environment }}
+        continue-on-error: true
+
+      - name: Terraform workspace select
+        run: terraform workspace select ${{ github.event.inputs.environment }}
+
+      - name: Terraform validate
+        run: terraform validate
+
+      - name: tfsec
+        uses:
+          docker://aquasec/tfsec:latest
+        with:
+          args: --exit-code 0 --no-colour --format json
+
+      - name: tflint
+        uses:
+          docker://wata727/tflint:latest
+        with:
+          args: --error-with-issues --format json
+
+      - name: Terraform plan
+        run: terraform plan -out=tfplan
+      - name: Comment PR
+        uses: Nuteer/terraform_null_resource/.github/workflows/actions-comment-pull-request@v1
+        with:
+          message: |
+            Hello world ! :wave:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Terraform apply
+        run: terraform apply tfplan
+
+      - name: Manual approval
+        uses:
+          docker://technote-space/workflow-conclusion-action:latest
+     
+      - name: Terraform output
+        run: terraform output

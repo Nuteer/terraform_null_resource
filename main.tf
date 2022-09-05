@@ -11,6 +11,9 @@ resource "null_resource" "null" {
         command = "echo hello"
     }
     
-    }
+}
+
+    
+
   
 

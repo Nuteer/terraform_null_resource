@@ -11,6 +11,15 @@ resource "null_resource" "null" {
         command = "echo hello"
     }
     
+}
+
+resource "null_resource" "null2" {
+    provisioner "local-exec" {
+        command = "echo hello2"
     }
+    
+}
+    
+
   
 

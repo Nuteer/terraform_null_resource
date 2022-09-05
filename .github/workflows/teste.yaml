@@ -1,4 +1,5 @@
 name: CI/CD template for teste
+
 on:
   pull_request:
     branches: [ "main" ]
@@ -12,52 +13,79 @@ on:
           - dev
           - uat
           - prod
+
 jobs:
-  build:
+  terraform-actions:
+    name: Workflow
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v2
-        with:
-          terraform_version: 1.1.7
-      - name: Terraform fmt
-        id: fmt
-        run: terraform fmt -check
-        continue-on-error: true
-      - name: Terraform Init
-        id: init
-        run: terraform init
-      - name: Terraform workspace new
-        run: terraform workspace new ${{ github.event.inputs.environment }}
-        continue-on-error: true
-      - name: Terraform workspace select
-        run: terraform workspace select ${{ github.event.inputs.environment }}
-      - name: Terraform validate
-        run: terraform validate
-      - name: tfsec
-        uses:
-          docker://aquasec/tfsec:latest
-        with:
-          args: --exit-code 0 --no-colour --format json
-      - name: tflint
-        uses:
-          docker://wata727/tflint:latest
-        with:
-          args: --error-with-issues --format json
-      - name: Terraform plan
-        run: terraform plan -out=tfplan
-      - name: Comment PR
-        uses: Nuteer/terraform_null_resource/.github/workflows/actions-comment-pull-request@v1
-        with:
-          message: |
-            Hello world ! :wave:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Terraform apply
-        run: terraform apply tfplan
-      - name: Manual approval
-        uses:
-          docker://technote-space/workflow-conclusion-action:latest
-      - name: Terraform output
-        run: terraform output
+
+    - name: Checkout Repository
+      uses: actions/checkout@master
+
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ secrets.AWS_REGION }}
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v2
+      with:
+        terraform_version: 1.1.7
+
+    - name: Terraform Fmt
+      id: fmt
+      run: terraform fmt -check -diff
+      continue-on-error: true
+
+    - name: Terraform Init
+      id: init
+      run: terraform init
+      continue-on-error: true
+
+    - name: Terraform Workspace New
+      run: terraform workspace new ${{ github.event.inputs.environment }}
+      continue-on-error: true
+    
+    - name: Terraform workspace select
+      run: terraform workspace select ${{ github.event.inputs.environment }}
+    
+    - name: Terraform Validate
+      id: validate
+      run: terraform validate -no-color
+      continue-on-error: true
+    
+    - name: tfsec
+      uses:
+        docker://aquasec/tfsec:latest
+      with:
+        args: --exit-code 0 --no-colour --format json
+    
+    - name: tflint
+      uses:
+        docker://wata727/tflint:latest
+      with:
+        args: --error-with-issues --format json
+    
+    - name: Terraform plan
+      id: plan
+      run: terraform plan -out=tfplan
+    
+    - name: Comment PR
+      uses: Nuteer/terraform_null_resource/.github/workflows/actions-comment-pull-request@v1
+      with:
+        message: |
+          Hello world ! :wave:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Terraform apply
+      run: terraform apply tfplan
+    
+    - name: Manual approval
+      uses:
+        docker://technote-space/workflow-conclusion-action:latest
+   
+    - name: Terraform output
+      run: terraform output

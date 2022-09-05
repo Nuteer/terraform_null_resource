@@ -1,11 +1,7 @@
 name: CI/CD template for teste
-
 on:
-
   pull_request:
     branches: [ "main" ]
-
-
   workflow_dispatch:
     inputs:
       environment:
@@ -23,12 +19,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
-
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
         with:
           terraform_version: 1.1.7
-
       - name: Terraform fmt
         id: fmt
         run: terraform fmt -check
@@ -37,29 +31,23 @@ jobs:
       - name: Terraform Init
         id: init
         run: terraform init
-
       - name: Terraform workspace new
         run: terraform workspace new ${{ github.event.inputs.environment }}
         continue-on-error: true
-
       - name: Terraform workspace select
         run: terraform workspace select ${{ github.event.inputs.environment }}
-
       - name: Terraform validate
         run: terraform validate
-
       - name: tfsec
         uses:
           docker://aquasec/tfsec:latest
         with:
           args: --exit-code 0 --no-colour --format json
-
       - name: tflint
         uses:
           docker://wata727/tflint:latest
         with:
           args: --error-with-issues --format json
-
       - name: Terraform plan
         run: terraform plan -out=tfplan
       - name: Comment PR
@@ -68,13 +56,10 @@ jobs:
           message: |
             Hello world ! :wave:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Terraform apply
         run: terraform apply tfplan
-
       - name: Manual approval
         uses:
           docker://technote-space/workflow-conclusion-action:latest
-     
       - name: Terraform output
         run: terraform output
